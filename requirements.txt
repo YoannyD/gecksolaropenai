@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+openai
+pydantic
+aiohttp
+twilio
+python-multipart
+requests
