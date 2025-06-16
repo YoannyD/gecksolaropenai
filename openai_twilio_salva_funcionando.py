@@ -19,11 +19,9 @@ from email.mime.text import MIMEText
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from openai_twilio_real import SYSTEM_MESSAGE
-
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(_name_)
 
 # Configuracion TWILIO
 TWILIO_ACCOUNT_SID = 'AC6c9b862207e6798a5f9dc336b404584c'
@@ -38,9 +36,9 @@ OPENAI_API_KEY = 'sk-proj-Lr_M_dBmCweHLnucX1BAnhbIjHnjamJB8SpT_f_TgoOomvGQXfoG1j
 openai.api_key = OPENAI_API_KEY
 PORT = int(os.getenv('PORT', 5050))
 
-VOICE = 'alloy'
+VOICE = 'alloy'  #
 LOG_EVENT_TYPES = [
-    'response.audio_transcript.done', 'conversation.item.input_audio_transcription.completed', 'conversation.item.function_call'
+    'response.audio_transcript.done', 'conversation.item.input_audio_transcription.completed'
 ]
 SHOW_TIMING_MATH = False
 
@@ -68,38 +66,6 @@ class CallRequest(BaseModel):
 class CallResponse(BaseModel):
     call_sid: str
     status: str
-
-
-SYSTEM_MESSAGE_LANGUAGE = {
-    'Spanish': (
-        "Eres Sofia Asistente Virtual de Gecko Solar Energy, eres amigable, profesional y servicial."
-        "Con un humor ligero y apropiado. "
-        "Se clara , concisa y enfocada en brindar información útil "
-        "Si te preguntan en espanol por los metodos de contactos Teléfono oficina: +52 664 607 1545, Email: hello@geckosolarenergy.us"
-        "Si te preguntan en ingles por los metodos de contactos Office phone: +1 619 826 6600, Email: hello@geckosolarenergy.us"
-        "Cuando el usuario pida agendar una cita: "
-        "1. Pide nombre, fecha/hora y tipo de proyecto EN ESE ORDEN. "
-        "2. CONFIRMA los datos repitiéndolos. "
-        "3. AUTOMÁTICAMENTE activa schedule_appointment con los datos. "
-        "Ejemplo: "
-        "'Agendaré tu cita para [fecha] a las [hora] para [proyecto].' "
-        "LUEGO llama a la función sin preguntar."
-    ),
-    'English': (
-        "You are Sofia, Gecko Solar Energy's Virtual Assistant. You are friendly, professional, and helpful."
-        "With a lighthearted and appropriate sense of humor."
-        "Be clear, concise, and focused on providing useful information."
-        "If they ask you in Spanish for contact methods, Office Phone: +52 664 607 1545, Email: hello@geckosolarenergy.us."
-        "If they ask you in English for contact methods, Office Phone: +1 619 826 6600, Email: hello@geckosolarenergy.us."
-        "When the user requests to schedule an appointment: "
-        "1. Ask for their full name, appointment date/time, and project type IN THAT ORDER. "
-        "2. CONFIRM the details by repeating them. "
-        "3. AUTOMATICALLY call schedule_appointment with the collected information. "
-        "Example: "
-        "'I’ll schedule your appointment for [date] at [time] for a [project type] project.' "
-        "Then call the function without asking."
-    ),
-}
 
 
 @app.get("/", response_class=JSONResponse)
@@ -164,7 +130,7 @@ async def handle_outbound_call(request: Request):
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 
-# Función para detectar el idioma basado en la solicitud del usuario
+# Función para detectar el idioma basado en la solicitud del usuario. ## Limitada a solo ingles y espanol
 def detect_language(user_input: str, current_language: str) -> str:
     user_input = user_input.lower()
     if "speak english" in user_input or "can we talk in english" in user_input:
@@ -176,8 +142,8 @@ def detect_language(user_input: str, current_language: str) -> str:
 
 def suggest_options(user_response: str) -> str:
     if not user_response.strip():
-        return ("¿Te gustaría obtener una cotización para alguno de nuestros servicios? "
-                "También puedo comunicarte con el departamento de ventas, administración o construcción si deseas dejar un mensaje con tus datos de contacto.")
+        return ("¿Te gustaría obtener mas informacion o una cotizacion de alguno de nuestros productos? "
+                "También puedo comunicarte con el departamento de ventas, administración o ingenieria, dejando un mensaje de voz")
     return ""
 
 
@@ -191,12 +157,7 @@ def get_common_questions(language="Spanish"):
         "English": {
             "Where am I speaking to?": "You are speaking to Gecko Solar Energy, a provider of solar energy systems.",
             "Where are they located?": "Our offices are in San Diego, California."
-        },
-        "Spanish_lead_assigned": {
-            "¿A Dónde hablo?": "Hablas a Gecko Solar Energy, proveedor de sistemas de energía solar.",
-            "¿Dónde están ubicados?": "Nuestras oficinas están en Tijuana, Baja California."
-        },
-    }
+        }
     return questions[language]
 
 
@@ -209,7 +170,7 @@ def get_prequalifying_questions(language="Spanish"):
             "¿Dónde se encuentra el proyecto?",
             "Si necesitas mantenimiento, ¿ya tienes un sistema instalado?",
             "Para instalación de paneles solares, ¿cuál es tu consumo promedio de electricidad?",
-            "Para cargadores de autos eléctricos, ¿es para uso residencial o comercial? ¿Necesitas carga rápida o de 240 voltios?",
+            "Para cargadores de autos eléctricos, ¿es para uso residencial o comercial? ¿Necesitas carga rápida o nivel 2?",
             "Para calefacción de alberca, ¿cuáles son las dimensiones (largo, ancho, profundidad)?",
             "Para sistemas solares aislados o respaldo con baterías, ¿qué tamaño tiene el lugar que deseas electrificar?",
             "¿Tienes un presupuesto específico en mente?",
@@ -231,32 +192,34 @@ def get_prequalifying_questions(language="Spanish"):
             "Is there additional information we should consider for the quote?",
             "To complete your request, could you please provide your full name, preferred contact method (phone, WhatsApp, or text message), the corresponding number, and a preferred date and time to return your call?"
         ],
-        "Spanish_lead_assigned": [
-            "¿Estás buscando un proyecto residencial, comercial, agrícola o industrial?",
-            "¿Qué tipo de proyecto te interesa? (Ejemplo: instalación de paneles solares, sistema solar aislado, cargador de autos eléctricos, calefacción de alberca, respaldo con baterías, mantenimiento)",
-            "¿Dónde se encuentra el proyecto?",
-            "Si necesitas mantenimiento, ¿ya tienes un sistema instalado?",
-            "Para instalación de paneles solares, ¿cuál es tu consumo promedio de electricidad?",
-            "Para cargadores de autos eléctricos, ¿es para uso residencial o comercial? ¿Necesitas carga rápida o de 240 voltios?",
-            "Para calefacción de alberca, ¿cuáles son las dimensiones (largo, ancho, profundidad)?",
-            "Para sistemas solares aislados o respaldo con baterías, ¿qué tamaño tiene el lugar que deseas electrificar?",
-            "¿Tienes un presupuesto específico en mente?",
-            "¿Cuándo planeas llevar a cabo tu proyecto?",
-            "¿Hay información adicional que debamos considerar para la cotización?",
-            "Para completar tu solicitud, ¿puedes proporcionarme tu nombre completo, el método de contacto preferido (teléfono, WhatsApp o mensaje de texto), el número correspondiente y una fecha y hora de preferencia para devolverte la llamada?"
-        ],
     }
     return questions[language]
 
 
 # Función para obtener el contexto del bot con soporte para cambio de idioma
 def get_bot_personality_context(language="Spanish"):
-    greeting_text = "Hola"
+
+
+def get_personality():
+    return {
+        "name": "Sofía",
+        "role": "Asistente Virtual de Gecko Solar Energy",
+        "tone": "amigable, profesional y servicial",
+        "humor": "ligero y apropiado",
+        "conversational_style": "claro, conciso y enfocado en brindar información útil",
+        "contact_info": {
+            "Spanish": "Teléfono oficina: +52 664 607 1545, Email: hello@geckosolarenergy.us",
+            "English": "Office phone: +1 619 826 6600, Email: hello@geckosolarenergy.us"
+        },
+
+        "service_area": {
+            "Spanish": "Todo México",
+            "English": "California, USA"
+            greeting_text = "Hola"
 
     greetings = {
         "Spanish": "Gracias por llamar a Gecko Solar Energy. Mi nombre es Sofía. ¿En qué puedo ayudarte hoy?",
         "English": "Thank you for calling Gecko Solar Energy. My name is Sofia. How can I help you today?",
-        "Spanish_lead_assigned": "Mi nombre es Sofía llamo desde Gecko Solar Energy",
     }
     contact_info = {
         "Spanish": (
@@ -270,24 +233,12 @@ def get_bot_personality_context(language="Spanish"):
             "Office phone number in San Diego: +1 619 826 6600\n"
             "Locations: San Diego, California\n"
             "Service Area: California, USA."
-        ),
-        "Spanish_lead_assigned": (
-            "Métodos de contacto preferidos: WhatsApp, SMS o llamada en vivo.\n"
-            "Teléfono de oficina en Tijuana: +52 664 607 1545\n"
-            "Ubicaciones: Tijuana, Baja California\n"
-            "Área de servicio: Todo México"
-        ),
-    }
-    conversation = {
-        "Spanish": (
-            f"""1.- Canalizar solicitud entrante.
-                        2.-Recabar información
-                        3.-Agendar llamadas o mandar mensajes.
-                        4.-Recabar información específica y precalificar.
-                        """
+            }
+            conversation = {
+            "Spanish": (
         ),
         "English": '',
-        "Spanish_lead_assigned": '',
+
     }
 
     return {
@@ -355,15 +306,15 @@ def get_tools(language="Spanish"):
                      },
                      "output": {
                          "type": "string",
-                         "description": "¿Qué espacio deseas electrificar (tamaño en m² o descripción)?",
+                         "description": "¿Qué tipo de inmueble o proyecto es el que buscas electrificar? ¿Casa de campo, rancho, taller?",
                      },
                      "output1": {
                          "type": "string",
-                         "description": "¿Tienes algún generador o batería actualmente?",
+                         "description": "¿Tienes algún generador o batería actualmente? ¿Cómo energizas actualmente el inmueble en cuestión?",
                      },
                      "output2": {
                          "type": "string",
-                         "description": "¿Qué electrodomésticos o cargas deseas alimentar?",
+                         "description": "¿Qué electrodomésticos o cargas deseas alimentar? Un listado funciona.",
                      },
                  },
                  "required": ["topic", "output", "output1", "output2"]
@@ -385,11 +336,11 @@ def get_tools(language="Spanish"):
                      },
                      "output1": {
                          "type": "string",
-                         "description": "¿Qué capacidad o tamaño tiene el sistema actual, si existe?",
+                         "description": "Si es para agua caliente sanitaria, ¿de cuántos metros cuadrados es la construcción del inmueble?",
                      },
                      "output2": {
                          "type": "string",
-                         "description": "¿Qué tipo de instalación prefieres (techo/plano)?",
+                         "description": "Para calefacción de piscinas, ¿cuáles son las dimensiones o volumen de agua de la alberca?",
                      },
                  },
                  "required": ["topic", "output", "output1", "output2"]
@@ -415,7 +366,7 @@ def get_tools(language="Spanish"):
                      },
                      "output2": {
                          "type": "string",
-                         "description": "¿Está techada o al aire libre?",
+                         "description": "¿La piscina está techada o al aire libre?",
                      },
                  },
                  "required": ["topic", "output", "output1", "output2"]
@@ -437,11 +388,11 @@ def get_tools(language="Spanish"):
                      },
                      "output1": {
                          "type": "string",
-                         "description": "¿Qué tipo de cargador buscas? (240V o carga rápida DC)",
+                         "description": "¿Qué tipo de cargador buscas? (Nivel 2 o carga rápida DC)",
                      },
                      "output2": {
                          "type": "string",
-                         "description": "¿Qué vehículo eléctrico tienes?",
+                         "description": "¿Qué marca y modelo de vehículo eléctrico tienes?",
                      },
                  },
                  "required": ["topic", "output", "output1", "output2"]
@@ -467,7 +418,7 @@ def get_tools(language="Spanish"):
                      },
                      "output2": {
                          "type": "string",
-                         "description": "¿Has tenido apagones frecuentes?",
+                         "description": "¿Has tenido apagones frecuentes? ?Con que tanta frecuencia?",
                      },
                  },
                  "required": ["topic", "output", "output1", "output2"]
@@ -498,46 +449,39 @@ def get_tools(language="Spanish"):
                  },
                  "required": ["topic", "output", "output1", "output2"]
              }
+             {
+                 "type": "function",
+                 "name": "residential_wind_turbines",
+                 "description": "Aerogeneradores residenciales",
+                 "parameters": {
+                     "type": "object",
+                     "properties": {
+                         "topic": {
+                             "type": "string",
+                             "description": "Residencial, Zonas con buen recurso eólico"
+                         },
+                         "output": {
+                             "type": "string",
+                             "description": "¿En qué ubicación planeas instalar el aerogenerador?"
+                         },
+                         "output1": {
+                             "type": "string",
+                             "description": "¿Cuentas con espacio suficiente y libre de obstáculos para la instalación?"
+                         },
+                         "output2": {
+                             "type": "string",
+                             "description": "¿Qué cargas o electrodomesticos deseas energizar con energía eólica?"
+                         },
+                         "output3": {
+                             "type": "string",
+                             "description": "¿Sabes si tu zona tiene buen recurso de viento promedio (más de 4 m/s)?"
+                         }
+                     },
+                     "required": ["topic", "output", "output1", "output2", "output3"]
+                 }
+             }
+
              },
-            {
-                "type": "function",
-                "name": "schedule_appointment",
-                "description": "Agenda una cita cuando el cliente lo solicita",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "full_name": {
-                            "type": "string",
-                            "description": "Nombre completo del cliente"
-                        },
-                        "phone_number": {
-                            "type": "string",
-                            "description": "Número de teléfono del cliente"
-                        },
-                        "email": {
-                            "type": "string",
-                            "description": "Correo electrónico del cliente"
-                        },
-                        "appointment_date": {
-                            "type": "string",
-                            "description": "Fecha deseada para la cita (formato YYYY-MM-DD)"
-                        },
-                        "appointment_time": {
-                            "type": "string",
-                            "description": "Hora deseada para la cita (formato HH:MM)"
-                        },
-                        "project_type": {
-                            "type": "string",
-                            "description": "Tipo de proyecto (residencial, comercial, etc.)"
-                        },
-                        "notes": {
-                            "type": "string",
-                            "description": "Notas adicionales"
-                        }
-                    },
-                    "required": ["full_name", "phone_number", "appointment_date", "appointment_time"]
-                }
-            },
         ],
         'English': [
             {
@@ -591,7 +535,7 @@ def get_tools(language="Spanish"):
                         },
                         "output": {
                             "type": "string",
-                            "description": "What space do you want to power (size in m² or description)?",
+                            "description": "What type of building or project are you looking to electrify? A country house, ranch, workshop?",
                         },
                         "output1": {
                             "type": "string",
@@ -622,11 +566,12 @@ def get_tools(language="Spanish"):
                         },
                         "output1": {
                             "type": "string",
-                            "description": "What capacity or size is the current system, if any?",
+                            "description": ""If it
+                            's for domestic hot water, what is the square footage area of the building?"},",
                         },
                         "output2": {
                             "type": "string",
-                            "description": "What type of installation do you prefer (rooftop/flat)?",
+                            "description": "For swimming pool heating, what are the dimensions or volume of water of the pool?",
                         },
                     },
                     "required": ["topic", "output", "output1", "output2"]
@@ -653,7 +598,7 @@ def get_tools(language="Spanish"):
                         },
                         "output2": {
                             "type": "string",
-                            "description": "Is it indoor or outdoor?",
+                            "description": "Is it indoor or outdoor swimming pool?",
                         },
                     },
                     "required": ["topic", "output", "output1", "output2"]
@@ -676,11 +621,11 @@ def get_tools(language="Spanish"):
                         },
                         "output1": {
                             "type": "string",
-                            "description": "What type of charger are you looking for? (240V or DC fast charging)",
+                            "description": "What type of charger are you looking for? (level 2 or DC fast charging)",
                         },
                         "output2": {
                             "type": "string",
-                            "description": "What electric vehicle do you have?",
+                            "description": "What brand and model of electric vehicle are you looking to charge?",
                         },
                     },
                     "required": ["topic", "output", "output1", "output2"]
@@ -703,11 +648,11 @@ def get_tools(language="Spanish"):
                         },
                         "output1": {
                             "type": "string",
-                            "description": "What do you want to back up with the battery (refrigerator, lights, etc.)?",
+                            "description": "Which appliance do you want to back up with the battery (refrigerator, lights, etc.)?",
                         },
                         "output2": {
                             "type": "string",
-                            "description": "Have you had frequent blackouts?",
+                            "description": "Have you had frequent blackouts? How often and for how long?",
                         },
                     },
                     "required": ["topic", "output", "output1", "output2"]
@@ -740,45 +685,38 @@ def get_tools(language="Spanish"):
                     "required": ["topic", "output", "output1", "output2"]
                 }
             },
-        ]
+            "type": "function",
+    "name": "residential_wind_turbines",
+    "description": "Residential wind turbines",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "topic": {
+                "type": "string",
+                "description": "Residential, Areas with good wind resources"
+            },
+            "output": {
+                "type": "string",
+                "description": "Where do you plan to install the wind turbine?"
+            },
+            "output1": {
+                "type": "string",
+                "description": "Do you have sufficient space free of obstacles for installation?"
+            },
+            "output2": {
+                "type": "string",
+                "description": "What loads do you want to cover with wind energy?"
+            },
+            "output3": {
+                "type": "string",
+                "description": "Do you know if your area has good average wind (more than 4 m/s)?"
+            }
+        },
+        "required": ["topic", "output", "output1", "output2", "output3"]
+    }
+    ]
     }
     return dicc[language]
-
-
-async def schedule_appointment(
-        full_name: str,
-        phone_number: str,
-        appointment_date: str,
-        appointment_time: str,
-        email: Optional[str] = None,
-        project_type: Optional[str] = None,
-        notes: Optional[str] = None
-):
-    """Envía los datos de la cita a la API de calendario/CRM"""
-    appointment_data = {
-        "full_name": full_name,
-        "phone_number": phone_number,
-        "email": email,
-        "appointment_date": appointment_date,
-        "appointment_time": appointment_time,
-        "project_type": project_type,
-        "notes": notes,
-        "source": "llamada_telefonica"
-    }
-
-    try:
-        # Ejemplo con requests (ajusta la URL y headers según tu API)
-        api_url = "http://localhost:8069/geckosolar/twilio-calendar"
-        headers = {}
-
-        response = requests.post(api_url, json=appointment_data, headers=headers)
-        response.raise_for_status()  # Lanza error si hay un status code 4XX/5XX
-
-        return {"status": "success", "message": "Cita agendada exitosamente"}
-
-    except Exception as e:
-        logger.error(f"Error al agendar cita: {str(e)}")
-        return {"status": "error", "message": "No se pudo agendar la cita"}
 
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
@@ -925,7 +863,7 @@ async def handle_media_stream(websocket: WebSocket, call_sid: str):
 
                         await send_mark(websocket, stream_sid)
 
-                    # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
+                    # Trigger an interruption. Your use case might work better using ⁠ input_audio_buffer.speech_stopped ⁠, or combining the two.
                     if response.get('type') == 'input_audio_buffer.speech_started':
                         print("Speech started detected.")
                         if last_assistant_item:
@@ -934,26 +872,6 @@ async def handle_media_stream(websocket: WebSocket, call_sid: str):
 
                     if response['type'] == 'response.output_item.done':
                         print(f"Received response.output_item.done: {response}")
-
-                    if response['type'] == 'conversation.item.function_call':
-                        print("🔥 SE DETECTÓ LLAMADA A FUNCIÓN:", response)
-                        if response['function_call']['name'] == 'schedule_appointment':
-                            args = json.loads(response['function_call']['arguments'])
-                            result = await schedule_appointment(**args)
-
-                            # Envía la confirmación al cliente
-                            confirmation = {
-                                "type": "conversation.item.create",
-                                "item": {
-                                    "type": "message",
-                                    "role": "assistant",
-                                    "content": [{
-                                        "type": "text",
-                                        "text": f"Cita agendada para {args['appointment_date']} a las {args['appointment_time']}"
-                                    }]
-                                }
-                            }
-                            await openai_ws.send(json.dumps(confirmation))
 
                     if response['type'] in ['response.audio_transcript.done',
                                             'conversation.item.input_audio_transcription.completed']:
@@ -1035,32 +953,19 @@ async def send_initial_conversation_item(openai_ws, call_sid):
     if call_sid in conversations:
         caller_number = conversations[call_sid]["caller_number"]
         to_number = conversations[call_sid]["to_number"]
-    language = "Spanish"
+    language = "Spanish_lead_assigned"
     if to_number == '+16196481404':
         language = "English"
     greeting = get_bot_personality_context(language)['greeting']
-    # initial_conversation_item = {
-    #     "type": "conversation.item.create",
-    #     "item": {
-    #         "type": "message",
-    #         "role": "user",
-    #         "content": [
-    #             {
-    #                 "type": "input_text",
-    #                 "text": greeting,
-    #             }
-    #         ]
-    #     }
-    # }
     initial_conversation_item = {
         "type": "conversation.item.create",
         "item": {
             "type": "message",
-            "role": "assistant",
+            "role": "user",
             "content": [
                 {
-                    "type": "text",  # ✅ NO usar input_text aquí
-                    "text": "Gracias por llamar a Gecko Solar Energy. Mi nombre es Sofía. ¿En qué puedo ayudarte hoy?"
+                    "type": "input_text",
+                    "text": greeting,
                 }
             ]
         }
@@ -1084,7 +989,6 @@ async def initialize_session(openai_ws, call_sid):
     session_update = {
         "type": "session.update",
         "session": {
-            "model": "gpt-4o",
             "turn_detection": {
                 "type": "server_vad",
                 "create_response": True,
@@ -1096,7 +1000,7 @@ async def initialize_session(openai_ws, call_sid):
             "input_audio_format": "g711_ulaw",
             "output_audio_format": "g711_ulaw",
             "voice": VOICE,
-            "instructions": SYSTEM_MESSAGE_LANGUAGE[language],
+            "instructions": get_bot_personality_context(language)["greeting"],
             "modalities": ["text", "audio"],
             "temperature": 0.8,
             "input_audio_transcription": {
@@ -1134,16 +1038,17 @@ def send_email(to_email, subject, body):
     msg["To"] = to_email
 
     try:
-        # server = smtplib.SMTP_SSL("mail.geckosolarenergy.com", 465)
-        # server.login(sender_email, sender_password)
-        # server.sendmail(sender_email, to_email, msg.as_string())
-        # server.quit()
+        server = smtplib.SMTP_SSL("mail.geckosolarenergy.com", 465)
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, to_email, msg.as_string())
+        server.quit()
         print("Correo enviado con éxito.")
     except Exception as e:
         print(f"Error al enviar correo: {e}")
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+f
+uvicorn.run(app, host="0.0.0.0", port=PORT)
